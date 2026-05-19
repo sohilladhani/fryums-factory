@@ -440,8 +440,8 @@
           <div class="field"><label>Date</label><input type="date" id="sal-date"></div>
           <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="sal-month" placeholder="Jan-2026"></div>
           <div class="field"><label>Distributor Name</label><input type="text" id="sal-dist" placeholder="Sharma Traders"></div>
-          <div class="field"><label>Product ID</label><input type="text" id="sal-pid" placeholder="P001"></div>
-          <div class="field"><label>Product Name</label><input type="text" id="sal-pname" placeholder="Ring Snacks"></div>
+          <div class="field"><label>Product ID</label><input type="text" id="sal-pid" placeholder="Auto-filled" readonly style="opacity:0.5;cursor:not-allowed;"></div>
+          <div class="field"><label>Product Name</label><select id="sal-pname"></select></div>
           <div class="field"><label>Qty Sold (kg)</label><input type="number" id="sal-qty" placeholder="50" step="0.01"></div>
           <div class="field"><label>Rate (₹/kg)</label><input type="number" id="sal-rate" placeholder="95" step="0.01"></div>
           <div class="field"><label>GST Collected (₹)</label><input type="number" id="sal-gst" placeholder="0" step="0.01"></div>
@@ -465,6 +465,7 @@
             <input type="password" id="set-pwd" placeholder="New password">
           </div>
           <button class="submit-btn" onclick="saveSettings()" style="width:fit-content">SAVE SETTINGS</button>
+          <button class="submit-btn" onclick="loadConfig(true)" style="width:fit-content;background:var(--surface);color:var(--accent);border:1px solid var(--accent);">↺ REFRESH DROPDOWNS</button>
           <div class="form-msg" id="msg-settings"></div>
           <hr style="border-color:var(--border)">
           <div style="font-size:0.8rem;color:var(--muted);line-height:1.8;">
@@ -490,7 +491,9 @@ const PASS_KEY     = 'ff_pwd';
 const URL_KEY      = 'ff_url';
 const DEFAULT_PASS = 'ladhani2026'; // Change this!
 const CACHE_KEY    = 'ff_cache';
+const CONFIG_KEY   = 'ff_config';
 const CACHE_TTL    = 10 * 60 * 1000; // 10 minutes in ms
+const CONFIG_TTL   = 60 * 60 * 1000; // 1 hour for config
 
 function getPass() { return localStorage.getItem(PASS_KEY) || DEFAULT_PASS; }
 function getURL()  { return localStorage.getItem(URL_KEY) || ''; }
@@ -512,6 +515,88 @@ function loadCache(year, month) {
   } catch(e) { return null; }
 }
 
+// ── Config / Dropdown helpers ──────────────────────────────────
+async function loadConfig(force = false) {
+  // Try cache first
+  try {
+    const raw = localStorage.getItem(CONFIG_KEY);
+    if (raw && !force) {
+      const entry = JSON.parse(raw);
+      if (Date.now() - entry.ts < CONFIG_TTL) {
+        populateDropdowns(entry.data);
+        return entry.data;
+      }
+    }
+  } catch(e) {}
+
+  // Fetch fresh
+  const cfg = await api({ action: 'getConfig' });
+  if (cfg && !cfg.error) {
+    localStorage.setItem(CONFIG_KEY, JSON.stringify({ data: cfg, ts: Date.now() }));
+    populateDropdowns(cfg);
+  }
+  return cfg;
+}
+
+function populateDropdowns(cfg) {
+  if (!cfg) return;
+
+  // Raw Material Type dropdown
+  fillSelect('raw-type', cfg.rawTypes);
+
+  // Operations Expense Type
+  fillSelect('ops-type', cfg.opsTypes);
+
+  // Labour Type
+  fillSelect('lab-type', cfg.labourTypes);
+
+  // Other Expense Category
+  fillSelect('oth-cat', cfg.otherCats);
+
+  // Product name (sales form)
+  if (cfg.products && cfg.products.length) {
+    fillSelect('sal-pname', cfg.products.map(p => p.name), cfg.products.map(p => p.name));
+    // Auto-fill product ID when product name changes
+    const pnameEl = document.getElementById('sal-pname');
+    if (pnameEl) {
+      pnameEl.onchange = () => {
+        const selected = cfg.products.find(p => p.name === pnameEl.value);
+        if (selected) document.getElementById('sal-pid').value = selected.id;
+      };
+    }
+  }
+
+  // Supplier ID dropdown (raw materials)
+  if (cfg.suppliers && cfg.suppliers.length) {
+    const supLabels = cfg.suppliers.map(s => s.id + (s.name ? ' — ' + s.name : ''));
+    const supVals   = cfg.suppliers.map(s => s.id);
+    fillSelect('raw-supplier', supLabels, supVals);
+  }
+
+  // Worker dropdown (labour)
+  if (cfg.workers && cfg.workers.length) {
+    const wLabels = cfg.workers.map(w => w.id + ' / ' + w.name);
+    fillSelect('lab-worker', wLabels, wLabels);
+  }
+}
+
+function fillSelect(id, labels, values) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const current = el.value;
+  // Keep first option if it's a placeholder
+  el.innerHTML = '';
+  const vals = values || labels;
+  labels.forEach((label, i) => {
+    const opt = document.createElement('option');
+    opt.value = vals[i];
+    opt.textContent = label;
+    el.appendChild(opt);
+  });
+  // Restore previous selection if still valid
+  if (current && [...el.options].some(o => o.value === current)) el.value = current;
+}
+
 function cacheAgeLabel(ms) {
   const s = Math.floor(ms / 1000);
   if (s < 60)  return `${s}s ago`;
@@ -528,6 +613,7 @@ function unlock() {
     document.getElementById('lock').style.display = 'none';
     document.getElementById('app').style.display  = 'block';
     if(!getURL()) document.getElementById('config-banner').style.display = 'block';
+    loadConfig();
     loadDashboard();
   } else {
     document.getElementById('lock-err').textContent = 'Wrong password. Try again.';
