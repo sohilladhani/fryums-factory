@@ -101,6 +101,7 @@
     transition: all 0.2s;
   }
   .sync-btn:hover { border-color: var(--accent); color: var(--accent); }
+  #last-sync { font-size: 0.72rem; font-family: var(--font-mono); color: var(--muted); max-width: 200px; text-align: right; line-height: 1.3; }
 
   /* ── Nav ───────────────────────────────────────────────────── */
   nav {
@@ -292,7 +293,7 @@
     <h1>🍿 LADHANI SNACKS</h1>
     <div style="display:flex;align-items:center;gap:1rem;">
       <span id="last-sync">—</span>
-      <button class="sync-btn" onclick="loadDashboard()">⟳ REFRESH</button>
+      <button class="sync-btn" onclick="loadDashboard(true)">⟳ REFRESH</button>
     </div>
   </header>
 
@@ -485,12 +486,39 @@
 
 <script>
 // ── Config ─────────────────────────────────────────────────────
-const PASS_KEY   = 'ff_pwd';
-const URL_KEY    = 'ff_url';
+const PASS_KEY     = 'ff_pwd';
+const URL_KEY      = 'ff_url';
 const DEFAULT_PASS = 'ladhani2026'; // Change this!
+const CACHE_KEY    = 'ff_cache';
+const CACHE_TTL    = 10 * 60 * 1000; // 10 minutes in ms
 
 function getPass() { return localStorage.getItem(PASS_KEY) || DEFAULT_PASS; }
 function getURL()  { return localStorage.getItem(URL_KEY) || ''; }
+
+// ── Cache helpers ───────────────────────────────────────────────
+function saveCache(year, month, data) {
+  const key = `${CACHE_KEY}_${year}_${month}`;
+  localStorage.setItem(key, JSON.stringify({ data, ts: Date.now() }));
+}
+
+function loadCache(year, month) {
+  try {
+    const key   = `${CACHE_KEY}_${year}_${month}`;
+    const raw   = localStorage.getItem(key);
+    if (!raw) return null;
+    const entry = JSON.parse(raw);
+    const age   = Date.now() - entry.ts;
+    return { data: entry.data, age, stale: age > CACHE_TTL };
+  } catch(e) { return null; }
+}
+
+function cacheAgeLabel(ms) {
+  const s = Math.floor(ms / 1000);
+  if (s < 60)  return `${s}s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60)  return `${m}m ago`;
+  return `${Math.floor(m/60)}h ago`;
+}
 
 // ── Lock / Unlock ───────────────────────────────────────────────
 function unlock() {
@@ -582,24 +610,51 @@ function msg(id, text, ok) {
 }
 
 // ── Dashboard ───────────────────────────────────────────────────
-async function loadDashboard() {
+async function loadDashboard(forceRefresh = false) {
   const year  = document.getElementById('sel-year').value;
   const month = document.getElementById('sel-month').value;
-  document.getElementById('dash-content').innerHTML =
-    '<div class="loading"><div class="spinner"></div> Fetching from Google Sheets…</div>';
-  document.getElementById('last-sync').textContent = 'Syncing…';
 
-  const data = await api({ action: 'getDashboard', year, month });
-  if(!data || data.error) {
-    document.getElementById('dash-content').innerHTML =
-      `<div class="loading">⚠ ${data?.error || 'Could not reach Google Sheets. Check your Script URL in Settings.'}</div>`;
+  // ── Try cache first ──────────────────────────────────────────
+  const cached = loadCache(year, month);
+  if (cached && !forceRefresh) {
+    renderDashboard(cached.data);
+    const label = cached.stale ? `⚠ Cached · ${cacheAgeLabel(cached.age)} · refreshing…`
+                               : `✓ Cached · ${cacheAgeLabel(cached.age)}`;
+    document.getElementById('last-sync').textContent = label;
+    if (cached.stale) {
+      // Refresh silently in background
+      fetchAndRender(year, month, true);
+    }
     return;
   }
 
-  document.getElementById('last-sync').textContent =
-    'Last sync: ' + new Date().toLocaleTimeString('en-IN');
+  // ── No cache — show loading and fetch ───────────────────────
+  if (!cached) {
+    document.getElementById('dash-content').innerHTML =
+      '<div class="loading"><div class="spinner"></div> Fetching from Google Sheets…</div>';
+  }
+  document.getElementById('last-sync').textContent = 'Syncing…';
+  fetchAndRender(year, month, false);
+}
 
-  const d = data;
+async function fetchAndRender(year, month, silent) {
+  const data = await api({ action: 'getDashboard', year, month });
+  if (!data || data.error) {
+    if (!silent) {
+      document.getElementById('dash-content').innerHTML =
+        `<div class="loading">⚠ ${data?.error || 'Could not reach Google Sheets. Check your Script URL in Settings.'}</div>`;
+    }
+    document.getElementById('last-sync').textContent = '⚠ Sync failed';
+    return;
+  }
+  saveCache(year, month, data);
+  renderDashboard(data);
+  document.getElementById('last-sync').textContent =
+    '↑ Synced · ' + new Date().toLocaleTimeString('en-IN');
+
+}
+
+function renderDashboard(d) {
   const netRev   = d.grossSales - d.returns;
   const totalCogs= d.rawPellets + d.masala + d.fryingOil + d.packaging + d.labourPaid + d.wastage + d.packingLoss;
   const grossProfit = netRev - totalCogs;
