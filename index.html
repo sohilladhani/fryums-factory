@@ -346,7 +346,7 @@
         <h2>🌾 Raw Materials Entry</h2>
         <div class="form-grid">
           <div class="field"><label>Date</label><input type="date" id="raw-date"></div>
-          <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="raw-month" placeholder="Jan-2026"></div>
+          <div class="field"><label>Month</label><select id="raw-month"></select></div>
           <div class="field"><label>Supplier ID</label><input type="text" id="raw-supplier" placeholder="S001"></div>
           <div class="field"><label>Material Name</label><input type="text" id="raw-material" placeholder="Rice Pellets"></div>
           <div class="field"><label>Type</label>
@@ -373,7 +373,7 @@
         <h2>⚡ Operations Entry</h2>
         <div class="form-grid">
           <div class="field"><label>Date</label><input type="date" id="ops-date"></div>
-          <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="ops-month" placeholder="Jan-2026"></div>
+          <div class="field"><label>Month</label><select id="ops-month"></select></div>
           <div class="field"><label>Expense Type</label>
             <select id="ops-type">
               <option>Electricity</option><option>Frying Oil / Fuel</option>
@@ -396,7 +396,7 @@
       <div class="form-section">
         <h2>👷 Labour Entry</h2>
         <div class="form-grid">
-          <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="lab-month" placeholder="Jan-2026"></div>
+          <div class="field"><label>Month</label><select id="lab-month"></select></div>
           <div class="field"><label>Worker ID / Name</label><input type="text" id="lab-worker" placeholder="W001 / Ramesh"></div>
           <div class="field"><label>Type</label>
             <select id="lab-type">
@@ -419,7 +419,7 @@
         <h2>💸 Other Expenses Entry</h2>
         <div class="form-grid">
           <div class="field"><label>Date</label><input type="date" id="oth-date"></div>
-          <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="oth-month" placeholder="Jan-2026"></div>
+          <div class="field"><label>Month</label><select id="oth-month"></select></div>
           <div class="field"><label>Category</label>
             <select id="oth-cat">
               <option>Loan EMI - Principal</option><option>Loan EMI - Interest</option>
@@ -441,13 +441,18 @@
         <h2>📦 Sales Entry</h2>
         <div class="form-grid">
           <div class="field"><label>Date</label><input type="date" id="sal-date"></div>
-          <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="sal-month" placeholder="Jan-2026"></div>
+          <div class="field"><label>Month</label><select id="sal-month"></select></div>
           <div class="field"><label>Distributor Name</label><input type="text" id="sal-dist" placeholder="Sharma Traders"></div>
-          <div class="field"><label>Product ID</label><input type="text" id="sal-pid" placeholder="Auto-filled" readonly style="opacity:0.5;cursor:not-allowed;"></div>
-          <div class="field"><label>Product Name</label><select id="sal-pname"></select></div>
-          <div class="field"><label>Qty Sold (kg)</label><input type="number" id="sal-qty" placeholder="50" step="0.01"></div>
-          <div class="field"><label>Rate (₹/kg)</label><input type="number" id="sal-rate" placeholder="95" step="0.01"></div>
-          <div class="field"><label>GST Collected (₹)</label><input type="number" id="sal-gst" placeholder="0" step="0.01"></div>
+          <div class="field"><label>SKU</label><select id="sal-sku"><option value="">Loading…</option></select></div>
+          <div class="field"><label>MRP (₹)</label><input type="text" id="sal-mrp" readonly style="opacity:0.6;cursor:not-allowed;" placeholder="Auto-filled"></div>
+          <div class="field"><label>Weight (g) this month</label><input type="number" id="sal-weight" placeholder="22" step="0.1"></div>
+          <div class="field"><label>Packets Sold</label><input type="number" id="sal-packets" placeholder="500" step="1"></div>
+          <div class="field"><label>Your Rate (₹/packet)</label><input type="number" id="sal-rate" placeholder="3.50" step="0.01"></div>
+        </div>
+        <div style="margin-top:1rem;padding:0.8rem 1rem;background:var(--surface2);border-radius:4px;font-family:var(--font-mono);font-size:0.82rem;display:flex;gap:2rem;flex-wrap:wrap;">
+          <span>Revenue: <strong id="sal-preview-rev">—</strong></span>
+          <span>GST (5%): <strong id="sal-preview-gst">—</strong></span>
+          <span>Net Revenue: <strong id="sal-preview-net" style="color:var(--green)">—</strong></span>
         </div>
         <button class="submit-btn" onclick="submitForm('sales')">ADD ENTRY</button>
         <div class="form-msg" id="msg-sales"></div>
@@ -500,6 +505,38 @@ const CONFIG_TTL   = 60 * 60 * 1000; // 1 hour for config
 
 function getPass() { return localStorage.getItem(PASS_KEY) || DEFAULT_PASS; }
 function getURL()  { return localStorage.getItem(URL_KEY) || ''; }
+// ── Month dropdown helpers ──────────────────────────────────────
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function generateMonthOptions() {
+  const opts = [];
+  for (let y = 2025; y <= 2028; y++) {
+    for (let m = 0; m < 12; m++) {
+      opts.push(`${MONTH_NAMES[m]}-${y}`);
+    }
+  }
+  return opts;
+}
+
+function currentMonthStr() {
+  const now = new Date();
+  return `${MONTH_NAMES[now.getMonth()]}-${now.getFullYear()}`;
+}
+
+function buildMonthSelect(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const current = el.value || currentMonthStr();
+  el.innerHTML = '';
+  generateMonthOptions().forEach(opt => {
+    const o = document.createElement('option');
+    o.value = opt; o.textContent = opt;
+    if (opt === current) o.selected = true;
+    el.appendChild(o);
+  });
+}
+
+
 
 // ── Cache helpers ───────────────────────────────────────────────
 function saveCache(year, month, data) {
@@ -550,8 +587,27 @@ function populateDropdowns(cfg) {
   // Operations Expense Type
   fillSelect('ops-type', cfg.opsTypes);
 
+  // Pay Type
+  if (cfg.payTypes) fillSelect('lab-paytype', cfg.payTypes);
   // Labour Type
   fillSelect('lab-type', cfg.labourTypes);
+
+  // SKU dropdown (sales form)
+  if (cfg.skus && cfg.skus.length) {
+    const skuLabels = cfg.skus.map(s => s.label);
+    const skuVals   = cfg.skus.map(s => s.id);
+    fillSelect('sal-sku', skuLabels, skuVals);
+    // Auto-fill MRP and weight when SKU changes
+    const skuEl = document.getElementById('sal-sku');
+    function onSkuChange() {
+      const selected = cfg.skus.find(s => s.id === skuEl.value);
+      if (selected) {
+        document.getElementById('sal-mrp').value    = '₹' + selected.mrp;
+        document.getElementById('sal-weight').value = selected.weight || '';
+      }
+    }
+    if (skuEl) { skuEl.onchange = onSkuChange; onSkuChange(); }
+  }
 
   // Other Expense Category
   fillSelect('oth-cat', cfg.otherCats);
@@ -606,6 +662,35 @@ function fillSelect(id, labels, values) {
   if (current && [...el.options].some(o => o.value === current)) el.value = current;
 }
 
+function toggleLabourFields() {
+  const payType  = document.getElementById('lab-paytype').value;
+  const daysField = document.getElementById('lab-days-field');
+  const rateLabel = document.getElementById('lab-rate-label');
+  if (payType === 'Salaried') {
+    daysField.style.display = 'none';
+    rateLabel.textContent   = 'Monthly Salary (₹)';
+    document.getElementById('lab-days').value = '';
+  } else {
+    daysField.style.display = '';
+    rateLabel.textContent   = 'Daily Rate (₹)';
+  }
+}
+
+function updateSalesPreview() {
+  const packets = parseFloat(document.getElementById('sal-packets')?.value) || 0;
+  const rate    = parseFloat(document.getElementById('sal-rate')?.value)    || 0;
+  const revenue = packets * rate;
+  const gst     = Math.round(revenue * 5 / 105 * 100) / 100;
+  const net     = Math.round((revenue - gst) * 100) / 100;
+  const fmt = v => '₹' + v.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  const rv = document.getElementById('sal-preview-rev');
+  const gv = document.getElementById('sal-preview-gst');
+  const nv = document.getElementById('sal-preview-net');
+  if (rv) rv.textContent = packets && rate ? fmt(revenue) : '—';
+  if (gv) gv.textContent = packets && rate ? fmt(gst)     : '—';
+  if (nv) nv.textContent = packets && rate ? fmt(net)      : '—';
+}
+
 function cacheAgeLabel(ms) {
   const s = Math.floor(ms / 1000);
   if (s < 60)  return `${s}s ago`;
@@ -656,6 +741,13 @@ window.addEventListener('load', () => {
   // Auto-focus password field
   const savedPwd = localStorage.getItem(PASS_KEY);
   if (savedPwd) document.getElementById('pwd-input').value = savedPwd;
+  // Build all month dropdowns
+  ['raw-month','ops-month','lab-month','oth-month','sal-month'].forEach(buildMonthSelect);
+  // Sales live preview
+  ['sal-packets','sal-rate'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateSalesPreview);
+  });
   // Set today's date on all date fields
   const today = new Date().toISOString().split('T')[0];
   ['raw-date','ops-date','oth-date','sal-date'].forEach(id => {
@@ -905,13 +997,14 @@ async function submitForm(type) {
     };
   } else if(type === 'labour') {
     payload = { ...payload,
-      month: document.getElementById('lab-month').value,
-      worker: document.getElementById('lab-worker').value,
+      month:   document.getElementById('lab-month').value,
+      worker:  document.getElementById('lab-worker').value,
+      payType: document.getElementById('lab-paytype').value,
       labType: document.getElementById('lab-type').value,
-      days: document.getElementById('lab-days').value,
-      wage: document.getElementById('lab-wage').value,
-      role: document.getElementById('lab-role').value,
-      notes: document.getElementById('lab-notes').value,
+      role:    document.getElementById('lab-role').value,
+      days:    document.getElementById('lab-days').value || '0',
+      rate:    document.getElementById('lab-rate').value,
+      notes:   document.getElementById('lab-notes').value,
     };
   } else if(type === 'other') {
     payload = { ...payload,
@@ -923,15 +1016,18 @@ async function submitForm(type) {
       notes: document.getElementById('oth-notes').value,
     };
   } else if(type === 'sales') {
+    const skuEl  = document.getElementById('sal-sku');
+    const skuOpt = skuEl?.options[skuEl?.selectedIndex];
     payload = { ...payload,
-      date: document.getElementById('sal-date').value,
-      month: document.getElementById('sal-month').value,
-      dist: document.getElementById('sal-dist').value,
-      pid: document.getElementById('sal-pid').value,
-      pname: document.getElementById('sal-pname').value,
-      qty: document.getElementById('sal-qty').value,
-      rate: document.getElementById('sal-rate').value,
-      gst: document.getElementById('sal-gst').value,
+      date:    document.getElementById('sal-date').value,
+      month:   document.getElementById('sal-month').value,
+      dist:    document.getElementById('sal-dist').value,
+      skuId:   skuEl?.value || '',
+      skuName: skuOpt?.textContent?.split(' — ')[0] || '',
+      mrp:     document.getElementById('sal-mrp').value?.replace('₹','') || '',
+      weight:  document.getElementById('sal-weight').value,
+      packets: document.getElementById('sal-packets').value,
+      ratePkt: document.getElementById('sal-rate').value,
     };
   }
 
