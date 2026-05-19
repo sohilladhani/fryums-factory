@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fryums Factory — Control Room</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  /* ── Reset & Variables ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0f0f0f;
+    --surface:  #1a1a1a;
+    --surface2: #242424;
+    --border:   #2e2e2e;
+    --accent:   #f0a500;
+    --accent2:  #e05c2a;
+    --green:    #2ecc71;
+    --red:      #e74c3c;
+    --text:     #f0ece4;
+    --muted:    #888;
+    --font-display: 'Bebas Neue', sans-serif;
+    --font-mono:    'DM Mono', monospace;
+    --font-body:    'DM Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Lock Screen ───────────────────────────────────────────── */
+  #lock {
+    position: fixed; inset: 0; z-index: 999;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 2rem;
+  }
+  #lock h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    text-align: center;
+    line-height: 1;
+  }
+  #lock p { color: var(--muted); font-size: 0.85rem; letter-spacing: 0.05em; }
+  .lock-form {
+    display: flex; flex-direction: column; align-items: center; gap: 1rem;
+    width: min(340px, 90vw);
+  }
+  .lock-form input {
+    width: 100%; padding: 0.9rem 1.2rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; color: var(--text);
+    font-family: var(--font-mono); font-size: 1rem;
+    letter-spacing: 0.15em; text-align: center;
+    outline: none; transition: border-color 0.2s;
+  }
+  .lock-form input:focus { border-color: var(--accent); }
+  .lock-form button {
+    width: 100%; padding: 0.9rem;
+    background: var(--accent); color: #000;
+    border: none; border-radius: 4px;
+    font-family: var(--font-display); font-size: 1.2rem;
+    letter-spacing: 0.1em; cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .lock-form button:hover { opacity: 0.85; }
+  #lock-err { color: var(--red); font-size: 0.8rem; min-height: 1rem; }
+
+  /* ── App Shell ─────────────────────────────────────────────── */
+  #app { display: none; min-height: 100vh; }
+
+  /* ── Header ────────────────────────────────────────────────── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg);
+  }
+  header h1 {
+    font-family: var(--font-display);
+    font-size: 1.6rem; letter-spacing: 0.1em;
+    color: var(--accent);
+  }
+  header span { color: var(--muted); font-size: 0.75rem; font-family: var(--font-mono); }
+  .sync-btn {
+    background: none; border: 1px solid var(--border);
+    color: var(--muted); padding: 0.4rem 0.9rem;
+    border-radius: 4px; cursor: pointer;
+    font-family: var(--font-mono); font-size: 0.75rem;
+    transition: all 0.2s;
+  }
+  .sync-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Nav ───────────────────────────────────────────────────── */
+  nav {
+    display: flex; gap: 0; border-bottom: 1px solid var(--border);
+    overflow-x: auto; padding: 0 2rem;
+    background: var(--surface);
+  }
+  nav button {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: var(--muted); padding: 0.85rem 1.2rem;
+    font-family: var(--font-body); font-size: 0.82rem;
+    font-weight: 500; letter-spacing: 0.04em;
+    cursor: pointer; white-space: nowrap;
+    transition: all 0.15s;
+  }
+  nav button:hover { color: var(--text); }
+  nav button.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Main Content ──────────────────────────────────────────── */
+  main { padding: 2rem; max-width: 1400px; margin: 0 auto; }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── Dashboard ─────────────────────────────────────────────── */
+  .year-bar {
+    display: flex; align-items: center; gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  .year-bar label { color: var(--muted); font-size: 0.8rem; font-family: var(--font-mono); }
+  .year-bar select, .year-bar input {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 0.5rem 0.8rem;
+    border-radius: 4px; font-family: var(--font-mono); font-size: 0.85rem;
+    outline: none;
+  }
+  .year-bar select:focus, .year-bar input:focus { border-color: var(--accent); }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem; margin-bottom: 2rem;
+  }
+  .kpi {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1.2rem 1.4rem;
+    position: relative; overflow: hidden;
+  }
+  .kpi::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+  }
+  .kpi.green::before { background: var(--green); }
+  .kpi.red::before   { background: var(--red); }
+  .kpi.orange::before{ background: var(--accent2); }
+  .kpi-label { font-size: 0.7rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .kpi-value { font-family: var(--font-display); font-size: 1.8rem; letter-spacing: 0.05em; }
+  .kpi-sub   { font-size: 0.72rem; color: var(--muted); margin-top: 0.3rem; }
+
+  .section-title {
+    font-family: var(--font-display); font-size: 1.1rem;
+    letter-spacing: 0.1em; color: var(--muted);
+    margin: 2rem 0 1rem; text-transform: uppercase;
+  }
+
+  .table-wrap { overflow-x: auto; border-radius: 6px; border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  thead tr { background: var(--surface2); }
+  thead th {
+    padding: 0.75rem 1rem; text-align: right;
+    font-family: var(--font-mono); font-size: 0.7rem;
+    color: var(--muted); letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+  thead th:first-child { text-align: left; }
+  tbody tr { border-top: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:hover { background: var(--surface); }
+  tbody td { padding: 0.65rem 1rem; text-align: right; font-family: var(--font-mono); }
+  tbody td:first-child { text-align: left; color: var(--text); }
+  .row-section td {
+    background: var(--surface2); color: var(--muted);
+    font-family: var(--font-body); font-size: 0.72rem;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 0.5rem 1rem;
+  }
+  .row-total td { font-weight: 600; background: var(--surface); }
+  .row-total td:first-child { color: var(--accent); }
+  .positive { color: var(--green); }
+  .negative { color: var(--red); }
+  .neutral  { color: var(--muted); }
+
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-top: 1.5rem; }
+  @media(max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } }
+  .chart-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 1.2rem;
+  }
+  .chart-box h3 { font-size: 0.75rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 1rem; }
+
+  /* ── Entry Forms ───────────────────────────────────────────── */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+  .field { display: flex; flex-direction: column; gap: 0.4rem; }
+  .field label { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; }
+  .field input, .field select {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text); padding: 0.7rem 0.9rem;
+    border-radius: 4px; font-family: var(--font-body); font-size: 0.88rem;
+    outline: none; transition: border-color 0.2s;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field select option { background: var(--surface2); }
+
+  .form-section {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem;
+  }
+  .form-section h2 {
+    font-family: var(--font-display); font-size: 1.2rem;
+    letter-spacing: 0.08em; color: var(--accent);
+    margin-bottom: 1.2rem;
+    display: flex; align-items: center; gap: 0.6rem;
+  }
+  .submit-btn {
+    margin-top: 1.2rem;
+    background: var(--accent); color: #000;
+    border: none; border-radius: 4px; padding: 0.75rem 2rem;
+    font-family: var(--font-display); font-size: 1rem;
+    letter-spacing: 0.08em; cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .submit-btn:hover { opacity: 0.85; }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .form-msg { margin-top: 0.75rem; font-size: 0.8rem; min-height: 1.2rem; }
+  .form-msg.ok  { color: var(--green); }
+  .form-msg.err { color: var(--red); }
+
+  /* ── Loading ───────────────────────────────────────────────── */
+  .loading {
+    display: flex; align-items: center; gap: 0.6rem;
+    color: var(--muted); font-family: var(--font-mono); font-size: 0.8rem;
+    padding: 3rem; justify-content: center;
+  }
+  .spinner {
+    width: 16px; height: 16px; border-radius: 50%;
+    border: 2px solid var(--border); border-top-color: var(--accent);
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Config Banner ─────────────────────────────────────────── */
+  #config-banner {
+    background: #1a1200; border: 1px solid var(--accent);
+    border-radius: 6px; padding: 1rem 1.4rem;
+    margin-bottom: 1.5rem; font-size: 0.82rem;
+    display: none;
+  }
+  #config-banner a { color: var(--accent); }
+
+  /* ── Recent Entries ────────────────────────────────────────── */
+  .recent-list { margin-top: 1rem; }
+  .recent-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.6rem 0; border-bottom: 1px solid var(--border);
+    font-size: 0.8rem;
+  }
+  .recent-item .ri-left { color: var(--muted); }
+  .recent-item .ri-right { font-family: var(--font-mono); color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ── Lock Screen ──────────────────────────────────────────────── -->
+<div id="lock">
+  <div>
+    <h1>FRYUMS<br>FACTORY</h1>
+    <p style="text-align:center; margin-top:0.5rem;">CONTROL ROOM</p>
+  </div>
+  <div class="lock-form">
+    <input type="password" id="pwd-input" placeholder="ENTER PASSWORD" autocomplete="current-password">
+    <button onclick="unlock()">UNLOCK</button>
+    <span id="lock-err"></span>
+  </div>
+</div>
+
+<!-- ── App ─────────────────────────────────────────────────────── -->
+<div id="app">
+  <header>
+    <h1>🔥 FRYUMS FACTORY</h1>
+    <div style="display:flex;align-items:center;gap:1rem;">
+      <span id="last-sync">—</span>
+      <button class="sync-btn" onclick="loadDashboard()">⟳ REFRESH</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="active" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button onclick="switchTab('entry-raw',this)">Raw Materials</button>
+    <button onclick="switchTab('entry-ops',this)">Operations</button>
+    <button onclick="switchTab('entry-labour',this)">Labour</button>
+    <button onclick="switchTab('entry-other',this)">Other Expenses</button>
+    <button onclick="switchTab('entry-sales',this)">Sales</button>
+    <button onclick="switchTab('settings',this)">⚙ Settings</button>
+  </nav>
+
+  <main>
+    <div id="config-banner">
+      ⚠ <strong>Script URL not configured.</strong>
+      Go to <a href="#" onclick="switchTab('settings',document.querySelector('nav button:last-child'));return false;">Settings</a>
+      and paste your Google Apps Script Web App URL to connect your Sheet.
+    </div>
+
+    <!-- ── DASHBOARD ─────────────────────────────────────────── -->
+    <div id="tab-dashboard" class="tab-panel active">
+      <div class="year-bar">
+        <label>YEAR</label>
+        <select id="sel-year" onchange="loadDashboard()">
+          <script>
+            for(let y=2024;y<=2030;y++){
+              document.write(`<option value="${y}" ${y===2026?'selected':''}>${y}</option>`);
+            }
+          </script>
+        </select>
+        <label style="margin-left:1rem;">MONTH</label>
+        <select id="sel-month" onchange="loadDashboard()">
+          <option value="ALL">ALL MONTHS</option>
+          <script>
+            ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+              .forEach((m,i)=>document.write(`<option value="${m}">${m}</option>`));
+          </script>
+        </select>
+      </div>
+
+      <div id="dash-content">
+        <div class="loading"><div class="spinner"></div> Loading from Google Sheets…</div>
+      </div>
+    </div>
+
+    <!-- ── RAW MATERIALS ENTRY ───────────────────────────────── -->
+    <div id="tab-entry-raw" class="tab-panel">
+      <div class="form-section">
+        <h2>🌾 Raw Materials Entry</h2>
+        <div class="form-grid">
+          <div class="field"><label>Date</label><input type="date" id="raw-date"></div>
+          <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="raw-month" placeholder="Jan-2026"></div>
+          <div class="field"><label>Supplier ID</label><input type="text" id="raw-supplier" placeholder="S001"></div>
+          <div class="field"><label>Material Name</label><input type="text" id="raw-material" placeholder="Rice Pellets"></div>
+          <div class="field"><label>Type</label>
+            <select id="raw-type">
+              <option>Raw Pellets</option><option>Masala / Seasoning</option>
+              <option>Cooking Oil</option><option>Other</option>
+            </select>
+          </div>
+          <div class="field"><label>Used For (Product)</label><input type="text" id="raw-product" placeholder="Ring Fryums"></div>
+          <div class="field"><label>Qty (kg)</label><input type="number" id="raw-qty" placeholder="100" step="0.01"></div>
+          <div class="field"><label>Rate (₹/kg)</label><input type="number" id="raw-rate" placeholder="80" step="0.01"></div>
+          <div class="field"><label>GST Rate (%)</label>
+            <select id="raw-gst"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option><option value="28">28%</option></select>
+          </div>
+        </div>
+        <button class="submit-btn" onclick="submitForm('raw')">ADD ENTRY</button>
+        <div class="form-msg" id="msg-raw"></div>
+      </div>
+    </div>
+
+    <!-- ── OPERATIONS ENTRY ──────────────────────────────────── -->
+    <div id="tab-entry-ops" class="tab-panel">
+      <div class="form-section">
+        <h2>⚡ Operations Entry</h2>
+        <div class="form-grid">
+          <div class="field"><label>Date</label><input type="date" id="ops-date"></div>
+          <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="ops-month" placeholder="Jan-2026"></div>
+          <div class="field"><label>Expense Type</label>
+            <select id="ops-type">
+              <option>Electricity</option><option>Frying Oil / Fuel</option>
+              <option>Packaging Material</option><option>Transport / Delivery</option><option>Other</option>
+            </select>
+          </div>
+          <div class="field"><label>Description</label><input type="text" id="ops-desc" placeholder="Electricity bill May"></div>
+          <div class="field"><label>Amount (₹)</label><input type="number" id="ops-amount" placeholder="2500" step="0.01"></div>
+          <div class="field"><label>GST Rate (%)</label>
+            <select id="ops-gst"><option value="0">0%</option><option value="5">5%</option><option value="12">12%</option><option value="18">18%</option></select>
+          </div>
+        </div>
+        <button class="submit-btn" onclick="submitForm('ops')">ADD ENTRY</button>
+        <div class="form-msg" id="msg-ops"></div>
+      </div>
+    </div>
+
+    <!-- ── LABOUR ENTRY ──────────────────────────────────────── -->
+    <div id="tab-entry-labour" class="tab-panel">
+      <div class="form-section">
+        <h2>👷 Labour Entry</h2>
+        <div class="form-grid">
+          <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="lab-month" placeholder="Jan-2026"></div>
+          <div class="field"><label>Worker ID / Name</label><input type="text" id="lab-worker" placeholder="W001 / Ramesh"></div>
+          <div class="field"><label>Type</label>
+            <select id="lab-type"><option>Paid Worker</option><option>Family (Imputed)</option></select>
+          </div>
+          <div class="field"><label>Days Worked</label><input type="number" id="lab-days" placeholder="26" step="1"></div>
+          <div class="field"><label>Daily Wage (₹)</label><input type="number" id="lab-wage" placeholder="500" step="0.01"></div>
+          <div class="field"><label>Notes</label><input type="text" id="lab-notes" placeholder="Optional"></div>
+        </div>
+        <button class="submit-btn" onclick="submitForm('labour')">ADD ENTRY</button>
+        <div class="form-msg" id="msg-labour"></div>
+      </div>
+    </div>
+
+    <!-- ── OTHER EXPENSES ENTRY ──────────────────────────────── -->
+    <div id="tab-entry-other" class="tab-panel">
+      <div class="form-section">
+        <h2>💸 Other Expenses Entry</h2>
+        <div class="form-grid">
+          <div class="field"><label>Date</label><input type="date" id="oth-date"></div>
+          <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="oth-month" placeholder="Jan-2026"></div>
+          <div class="field"><label>Category</label>
+            <select id="oth-cat">
+              <option>Loan EMI - Principal</option><option>Loan EMI - Interest</option>
+              <option>Wastage / Spoilage</option><option>Distributor Return</option><option>Other</option>
+            </select>
+          </div>
+          <div class="field"><label>Description</label><input type="text" id="oth-desc" placeholder="SBI Loan EMI May"></div>
+          <div class="field"><label>Amount (₹)</label><input type="number" id="oth-amount" placeholder="15000" step="0.01"></div>
+          <div class="field"><label>Notes</label><input type="text" id="oth-notes" placeholder="Optional"></div>
+        </div>
+        <button class="submit-btn" onclick="submitForm('other')">ADD ENTRY</button>
+        <div class="form-msg" id="msg-other"></div>
+      </div>
+    </div>
+
+    <!-- ── SALES ENTRY ───────────────────────────────────────── -->
+    <div id="tab-entry-sales" class="tab-panel">
+      <div class="form-section">
+        <h2>📦 Sales Entry</h2>
+        <div class="form-grid">
+          <div class="field"><label>Date</label><input type="date" id="sal-date"></div>
+          <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="sal-month" placeholder="Jan-2026"></div>
+          <div class="field"><label>Distributor Name</label><input type="text" id="sal-dist" placeholder="Sharma Traders"></div>
+          <div class="field"><label>Product ID</label><input type="text" id="sal-pid" placeholder="P001"></div>
+          <div class="field"><label>Product Name</label><input type="text" id="sal-pname" placeholder="Ring Fryums"></div>
+          <div class="field"><label>Qty Sold (kg)</label><input type="number" id="sal-qty" placeholder="50" step="0.01"></div>
+          <div class="field"><label>Rate (₹/kg)</label><input type="number" id="sal-rate" placeholder="95" step="0.01"></div>
+          <div class="field"><label>GST Collected (₹)</label><input type="number" id="sal-gst" placeholder="0" step="0.01"></div>
+        </div>
+        <button class="submit-btn" onclick="submitForm('sales')">ADD ENTRY</button>
+        <div class="form-msg" id="msg-sales"></div>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS ──────────────────────────────────────────── -->
+    <div id="tab-settings" class="tab-panel">
+      <div class="form-section">
+        <h2>⚙ Settings</h2>
+        <div style="display:flex;flex-direction:column;gap:1.2rem;max-width:520px;">
+          <div class="field">
+            <label>Google Apps Script Web App URL</label>
+            <input type="url" id="set-url" placeholder="https://script.google.com/macros/s/…/exec">
+          </div>
+          <div class="field">
+            <label>Change Password</label>
+            <input type="password" id="set-pwd" placeholder="New password">
+          </div>
+          <button class="submit-btn" onclick="saveSettings()" style="width:fit-content">SAVE SETTINGS</button>
+          <div class="form-msg" id="msg-settings"></div>
+          <hr style="border-color:var(--border)">
+          <div style="font-size:0.8rem;color:var(--muted);line-height:1.8;">
+            <strong style="color:var(--text);">Setup Instructions</strong><br>
+            1. Open your Fryums Google Sheet<br>
+            2. Click <strong>Extensions → Apps Script</strong><br>
+            3. Delete any existing code and paste the contents of <strong>Code.gs</strong><br>
+            4. Click <strong>Deploy → New Deployment → Web App</strong><br>
+            5. Set "Who has access" to <strong>Anyone</strong><br>
+            6. Copy the Web App URL and paste it above<br>
+            7. Host this <strong>index.html</strong> on GitHub Pages (free)<br>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ── Config ─────────────────────────────────────────────────────
+const PASS_KEY   = 'ff_pwd';
+const URL_KEY    = 'ff_url';
+const DEFAULT_PASS = 'fryums2026'; // Change this!
+
+function getPass() { return localStorage.getItem(PASS_KEY) || DEFAULT_PASS; }
+function getURL()  { return localStorage.getItem(URL_KEY) || ''; }
+
+// ── Lock / Unlock ───────────────────────────────────────────────
+function unlock() {
+  const v = document.getElementById('pwd-input').value;
+  if(v === getPass()) {
+    document.getElementById('lock').style.display = 'none';
+    document.getElementById('app').style.display  = 'block';
+    if(!getURL()) document.getElementById('config-banner').style.display = 'block';
+    loadDashboard();
+  } else {
+    document.getElementById('lock-err').textContent = 'Wrong password. Try again.';
+    document.getElementById('pwd-input').value = '';
+  }
+}
+document.getElementById('pwd-input').addEventListener('keydown', e => {
+  if(e.key === 'Enter') unlock();
+});
+
+// ── Tab switching ───────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── Settings ────────────────────────────────────────────────────
+function saveSettings() {
+  const url = document.getElementById('set-url').value.trim();
+  const pwd = document.getElementById('set-pwd').value.trim();
+  if(url) { localStorage.setItem(URL_KEY, url); document.getElementById('config-banner').style.display='none'; }
+  if(pwd) localStorage.setItem(PASS_KEY, pwd);
+  msg('settings', 'Saved! Refresh to use new settings.', true);
+}
+
+// Pre-fill settings fields
+window.addEventListener('load', () => {
+  document.getElementById('set-url').value = getURL();
+  // Set today's date on all date fields
+  const today = new Date().toISOString().split('T')[0];
+  ['raw-date','ops-date','oth-date','sal-date'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = today;
+  });
+  // Set current month on all month fields
+  const now = new Date();
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const monthStr = `${months[now.getMonth()]}-${now.getFullYear()}`;
+  ['raw-month','ops-month','lab-month','oth-month','sal-month'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.value = monthStr;
+  });
+});
+
+// ── API call helper ─────────────────────────────────────────────
+async function api(params) {
+  const url = getURL();
+  if(!url) { alert('Please configure your Apps Script URL in Settings first.'); return null; }
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`${url}?${qs}`);
+  return res.json();
+}
+
+// ── Format helpers ──────────────────────────────────────────────
+function inr(v) {
+  if(v === undefined || v === null || v === '') return '—';
+  const n = parseFloat(v);
+  if(isNaN(n)) return '—';
+  return '₹' + Math.abs(n).toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+function pct(v) {
+  if(!v && v !== 0) return '—';
+  return (parseFloat(v)*100).toFixed(1) + '%';
+}
+function cls(v) {
+  if(!v && v !== 0) return 'neutral';
+  return parseFloat(v) >= 0 ? 'positive' : 'negative';
+}
+
+function msg(id, text, ok) {
+  const el = document.getElementById('msg-' + id);
+  el.textContent = text;
+  el.className = 'form-msg ' + (ok ? 'ok' : 'err');
+  if(ok) setTimeout(() => el.textContent = '', 4000);
+}
+
+// ── Dashboard ───────────────────────────────────────────────────
+async function loadDashboard() {
+  const year  = document.getElementById('sel-year').value;
+  const month = document.getElementById('sel-month').value;
+  document.getElementById('dash-content').innerHTML =
+    '<div class="loading"><div class="spinner"></div> Fetching from Google Sheets…</div>';
+  document.getElementById('last-sync').textContent = 'Syncing…';
+
+  const data = await api({ action: 'getDashboard', year, month });
+  if(!data || data.error) {
+    document.getElementById('dash-content').innerHTML =
+      `<div class="loading">⚠ ${data?.error || 'Could not reach Google Sheets. Check your Script URL in Settings.'}</div>`;
+    return;
+  }
+
+  document.getElementById('last-sync').textContent =
+    'Last sync: ' + new Date().toLocaleTimeString('en-IN');
+
+  const d = data;
+  const netRev   = d.grossSales - d.returns;
+  const totalCogs= d.rawPellets + d.masala + d.fryingOil + d.packaging + d.labourPaid + d.wastage + d.packingLoss;
+  const grossProfit = netRev - totalCogs;
+  const totalOpex   = d.electricity + d.transport + d.loanInterest + d.depreciation + d.familyLabour;
+  const netProfit   = grossProfit - totalOpex;
+  const gstPayable  = d.gstOutput - d.gstInputRaw - d.gstInputOps;
+
+  document.getElementById('dash-content').innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi ${netRev>=0?'green':'red'}">
+        <div class="kpi-label">Net Revenue</div>
+        <div class="kpi-value">${inr(netRev)}</div>
+        <div class="kpi-sub">Gross ${inr(d.grossSales)} − Returns ${inr(d.returns)}</div>
+      </div>
+      <div class="kpi ${netProfit>=0?'green':'red'}">
+        <div class="kpi-label">Net Profit / Loss</div>
+        <div class="kpi-value ${cls(netProfit)}">${inr(netProfit)}</div>
+        <div class="kpi-sub">Net Margin: ${netRev ? pct(netProfit/netRev) : '—'}</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Gross Profit</div>
+        <div class="kpi-value ${cls(grossProfit)}">${inr(grossProfit)}</div>
+        <div class="kpi-sub">Gross Margin: ${netRev ? pct(grossProfit/netRev) : '—'}</div>
+      </div>
+      <div class="kpi orange">
+        <div class="kpi-label">GST Payable</div>
+        <div class="kpi-value">${inr(gstPayable)}</div>
+        <div class="kpi-sub">Output ${inr(d.gstOutput)} − Input ${inr(d.gstInputRaw+d.gstInputOps)}</div>
+      </div>
+    </div>
+
+    <div class="section-title">P&L Breakdown</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Line Item</th><th>Amount</th><th>% of Revenue</th>
+        </tr></thead>
+        <tbody>
+          <tr class="row-section"><td colspan="3">A. REVENUE</td></tr>
+          <tr><td>Gross Sales</td><td>${inr(d.grossSales)}</td><td>—</td></tr>
+          <tr><td>Less: Returns</td><td class="negative">−${inr(d.returns)}</td><td>—</td></tr>
+          <tr class="row-total"><td>NET REVENUE</td><td>${inr(netRev)}</td><td>100%</td></tr>
+
+          <tr class="row-section"><td colspan="3">B. COST OF GOODS SOLD</td></tr>
+          <tr><td>  Raw Pellets</td><td class="negative">${inr(d.rawPellets)}</td><td class="neutral">${netRev?pct(d.rawPellets/netRev):'—'}</td></tr>
+          <tr><td>  Masala / Seasoning</td><td class="negative">${inr(d.masala)}</td><td class="neutral">${netRev?pct(d.masala/netRev):'—'}</td></tr>
+          <tr><td>  Frying Oil / Fuel</td><td class="negative">${inr(d.fryingOil)}</td><td class="neutral">${netRev?pct(d.fryingOil/netRev):'—'}</td></tr>
+          <tr><td>  Packaging Material</td><td class="negative">${inr(d.packaging)}</td><td class="neutral">${netRev?pct(d.packaging/netRev):'—'}</td></tr>
+          <tr><td>  Labour (Paid)</td><td class="negative">${inr(d.labourPaid)}</td><td class="neutral">${netRev?pct(d.labourPaid/netRev):'—'}</td></tr>
+          <tr><td>  Wastage / Spoilage</td><td class="negative">${inr(d.wastage)}</td><td class="neutral">${netRev?pct(d.wastage/netRev):'—'}</td></tr>
+          <tr><td>  Packing Overfill Loss</td><td class="negative">${inr(d.packingLoss)}</td><td class="neutral">${netRev?pct(d.packingLoss/netRev):'—'}</td></tr>
+          <tr class="row-total"><td>TOTAL COGS</td><td class="negative">${inr(totalCogs)}</td><td class="neutral">${netRev?pct(totalCogs/netRev):'—'}</td></tr>
+          <tr class="row-total"><td>GROSS PROFIT</td><td class="${cls(grossProfit)}">${inr(grossProfit)}</td><td class="${cls(grossProfit)}">${netRev?pct(grossProfit/netRev):'—'}</td></tr>
+
+          <tr class="row-section"><td colspan="3">C. OPERATING EXPENSES</td></tr>
+          <tr><td>  Electricity</td><td class="negative">${inr(d.electricity)}</td><td class="neutral">${netRev?pct(d.electricity/netRev):'—'}</td></tr>
+          <tr><td>  Transport / Delivery</td><td class="negative">${inr(d.transport)}</td><td class="neutral">${netRev?pct(d.transport/netRev):'—'}</td></tr>
+          <tr><td>  Loan EMI Interest</td><td class="negative">${inr(d.loanInterest)}</td><td class="neutral">${netRev?pct(d.loanInterest/netRev):'—'}</td></tr>
+          <tr><td>  Depreciation</td><td class="negative">${inr(d.depreciation)}</td><td class="neutral">${netRev?pct(d.depreciation/netRev):'—'}</td></tr>
+          <tr><td>  Family Labour (Imputed)</td><td class="negative">${inr(d.familyLabour)}</td><td class="neutral">${netRev?pct(d.familyLabour/netRev):'—'}</td></tr>
+          <tr class="row-total"><td>TOTAL OPEX</td><td class="negative">${inr(totalOpex)}</td><td class="neutral">${netRev?pct(totalOpex/netRev):'—'}</td></tr>
+          <tr class="row-total"><td>NET PROFIT / LOSS</td><td class="${cls(netProfit)}">${inr(netProfit)}</td><td class="${cls(netProfit)}">${netRev?pct(netProfit/netRev):'—'}</td></tr>
+
+          <tr class="row-section"><td colspan="3">E. GST SUMMARY</td></tr>
+          <tr><td>  Output GST Collected</td><td class="positive">${inr(d.gstOutput)}</td><td>—</td></tr>
+          <tr><td>  Input GST (Raw Materials)</td><td class="negative">${inr(d.gstInputRaw)}</td><td>—</td></tr>
+          <tr><td>  Input GST (Operations)</td><td class="negative">${inr(d.gstInputOps)}</td><td>—</td></tr>
+          <tr class="row-total"><td>GST PAYABLE</td><td class="${cls(gstPayable)}">${inr(gstPayable)}</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-box">
+        <h3>COGS Breakdown</h3>
+        <canvas id="chart-cogs" height="220"></canvas>
+      </div>
+      <div class="chart-box">
+        <h3>Revenue vs Cost vs Profit</h3>
+        <canvas id="chart-waterfall" height="220"></canvas>
+      </div>
+    </div>
+  `;
+
+  // Charts
+  setTimeout(() => {
+    // COGS donut
+    new Chart(document.getElementById('chart-cogs'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Raw Pellets','Masala','Frying Oil','Packaging','Labour','Wastage','Packing Loss'],
+        datasets: [{ data: [d.rawPellets,d.masala,d.fryingOil,d.packaging,d.labourPaid,d.wastage,d.packingLoss],
+          backgroundColor: ['#f0a500','#e05c2a','#e74c3c','#3498db','#2ecc71','#9b59b6','#1abc9c'],
+          borderColor: '#1a1a1a', borderWidth: 2 }]
+      },
+      options: { plugins: { legend: { labels: { color: '#888', font: { size: 11 } } } }, cutout: '65%' }
+    });
+
+    // Bar chart
+    new Chart(document.getElementById('chart-waterfall'), {
+      type: 'bar',
+      data: {
+        labels: ['Revenue','Total COGS','Gross Profit','Total Opex','Net Profit'],
+        datasets: [{ data: [netRev, totalCogs, grossProfit, totalOpex, netProfit],
+          backgroundColor: [
+            '#2ecc71','#e74c3c',
+            grossProfit>=0?'#2ecc71':'#e74c3c',
+            '#e05c2a',
+            netProfit>=0?'#f0a500':'#e74c3c'
+          ],
+          borderRadius: 4 }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: '#2e2e2e' } },
+          y: { ticks: { color: '#888', font: { size: 10 }, callback: v => '₹'+v.toLocaleString('en-IN') }, grid: { color: '#2e2e2e' } }
+        }
+      }
+    });
+  }, 100);
+}
+
+// ── Form Submission ─────────────────────────────────────────────
+async function submitForm(type) {
+  const btnMap = { raw:'raw', ops:'ops', labour:'labour', other:'other', sales:'sales' };
+  const btn = document.querySelector(`#tab-entry-${type==='other'?'other':type==='labour'?'labour':type==='sales'?'sales':type==='ops'?'ops':'raw'} .submit-btn`);
+  btn.disabled = true;
+  btn.textContent = 'SAVING…';
+
+  let payload = { action: 'appendRow', sheet: type };
+
+  if(type === 'raw') {
+    payload = { ...payload,
+      date: document.getElementById('raw-date').value,
+      month: document.getElementById('raw-month').value,
+      supplier: document.getElementById('raw-supplier').value,
+      material: document.getElementById('raw-material').value,
+      matType: document.getElementById('raw-type').value,
+      product: document.getElementById('raw-product').value,
+      qty: document.getElementById('raw-qty').value,
+      rate: document.getElementById('raw-rate').value,
+      gstRate: document.getElementById('raw-gst').value,
+    };
+  } else if(type === 'ops') {
+    payload = { ...payload,
+      date: document.getElementById('ops-date').value,
+      month: document.getElementById('ops-month').value,
+      expType: document.getElementById('ops-type').value,
+      desc: document.getElementById('ops-desc').value,
+      amount: document.getElementById('ops-amount').value,
+      gstRate: document.getElementById('ops-gst').value,
+    };
+  } else if(type === 'labour') {
+    payload = { ...payload,
+      month: document.getElementById('lab-month').value,
+      worker: document.getElementById('lab-worker').value,
+      labType: document.getElementById('lab-type').value,
+      days: document.getElementById('lab-days').value,
+      wage: document.getElementById('lab-wage').value,
+      notes: document.getElementById('lab-notes').value,
+    };
+  } else if(type === 'other') {
+    payload = { ...payload,
+      date: document.getElementById('oth-date').value,
+      month: document.getElementById('oth-month').value,
+      cat: document.getElementById('oth-cat').value,
+      desc: document.getElementById('oth-desc').value,
+      amount: document.getElementById('oth-amount').value,
+      notes: document.getElementById('oth-notes').value,
+    };
+  } else if(type === 'sales') {
+    payload = { ...payload,
+      date: document.getElementById('sal-date').value,
+      month: document.getElementById('sal-month').value,
+      dist: document.getElementById('sal-dist').value,
+      pid: document.getElementById('sal-pid').value,
+      pname: document.getElementById('sal-pname').value,
+      qty: document.getElementById('sal-qty').value,
+      rate: document.getElementById('sal-rate').value,
+      gst: document.getElementById('sal-gst').value,
+    };
+  }
+
+  try {
+    const res = await api(payload);
+    if(res && res.success) {
+      msg(type==='other'?'other':type, '✓ Entry added to Google Sheet!', true);
+    } else {
+      msg(type==='other'?'other':type, '⚠ Error: ' + (res?.error || 'Unknown error'), false);
+    }
+  } catch(e) {
+    msg(type==='other'?'other':type, '⚠ Network error. Check Script URL.', false);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'ADD ENTRY';
+}
+</script>
+</body>
+</html>
