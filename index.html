@@ -399,10 +399,13 @@
           <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="lab-month" placeholder="Jan-2026"></div>
           <div class="field"><label>Worker ID / Name</label><input type="text" id="lab-worker" placeholder="W001 / Ramesh"></div>
           <div class="field"><label>Type</label>
-            <select id="lab-type"><option>Paid Worker</option><option>Family (Imputed)</option></select>
+            <select id="lab-type">
+              <option value="">Loading…</option>
+            </select>
           </div>
           <div class="field"><label>Days Worked</label><input type="number" id="lab-days" placeholder="26" step="1"></div>
           <div class="field"><label>Daily Wage (₹)</label><input type="number" id="lab-wage" placeholder="500" step="0.01"></div>
+          <div class="field"><label>Role / Designation</label><input type="text" id="lab-role" placeholder="e.g. Fryer Operator, Packer"></div>
           <div class="field"><label>Notes</label><input type="text" id="lab-notes" placeholder="Optional"></div>
         </div>
         <button class="submit-btn" onclick="submitForm('labour')">ADD ENTRY</button>
@@ -567,9 +570,15 @@ function populateDropdowns(cfg) {
   }
 
   // Supplier ID dropdown (raw materials)
+  // Format: "S001 — Sharma Traders (mainly pellets)"
   if (cfg.suppliers && cfg.suppliers.length) {
-    const supLabels = cfg.suppliers.map(s => s.id + (s.name ? ' — ' + s.name : ''));
-    const supVals   = cfg.suppliers.map(s => s.id);
+    const supLabels = cfg.suppliers.map(s => {
+      let label = s.id;
+      if (s.name) label += ' — ' + s.name;
+      if (s.note) label += ' (' + s.note + ')';
+      return label;
+    });
+    const supVals = cfg.suppliers.map(s => s.id);
     fillSelect('raw-supplier', supLabels, supVals);
   }
 
@@ -789,7 +798,7 @@ function renderDashboard(d) {
           <tr><td>  Masala / Seasoning</td><td class="negative">${inr(d.masala)}</td><td class="neutral">${netRev?pct(d.masala/netRev):'—'}</td></tr>
           <tr><td>  Frying Oil / Fuel</td><td class="negative">${inr(d.fryingOil)}</td><td class="neutral">${netRev?pct(d.fryingOil/netRev):'—'}</td></tr>
           <tr><td>  Packaging Material</td><td class="negative">${inr(d.packaging)}</td><td class="neutral">${netRev?pct(d.packaging/netRev):'—'}</td></tr>
-          <tr><td>  Labour (Paid)</td><td class="negative">${inr(d.labourPaid)}</td><td class="neutral">${netRev?pct(d.labourPaid/netRev):'—'}</td></tr>
+          <tr><td>  Labour (Skilled + Unskilled)</td><td class="negative">${inr(d.labourPaid)}</td><td class="neutral">${netRev?pct(d.labourPaid/netRev):'—'}</td></tr>
           <tr><td>  Wastage / Spoilage</td><td class="negative">${inr(d.wastage)}</td><td class="neutral">${netRev?pct(d.wastage/netRev):'—'}</td></tr>
           <tr><td>  Packing Overfill Loss</td><td class="negative">${inr(d.packingLoss)}</td><td class="neutral">${netRev?pct(d.packingLoss/netRev):'—'}</td></tr>
           <tr class="row-total"><td>TOTAL COGS</td><td class="negative">${inr(totalCogs)}</td><td class="neutral">${netRev?pct(totalCogs/netRev):'—'}</td></tr>
@@ -901,6 +910,7 @@ async function submitForm(type) {
       labType: document.getElementById('lab-type').value,
       days: document.getElementById('lab-days').value,
       wage: document.getElementById('lab-wage').value,
+      role: document.getElementById('lab-role').value,
       notes: document.getElementById('lab-notes').value,
     };
   } else if(type === 'other') {
