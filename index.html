@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fryums Factory — Control Room</title>
+<title>Ladhani Snacks — Control Room</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -275,7 +275,7 @@
 <!-- ── Lock Screen ──────────────────────────────────────────────── -->
 <div id="lock">
   <div>
-    <h1>FRYUMS<br>FACTORY</h1>
+    <h1>LADHANI<br>SNACKS</h1>
     <p style="text-align:center; margin-top:0.5rem;">CONTROL ROOM</p>
   </div>
   <div class="lock-form">
@@ -288,7 +288,7 @@
 <!-- ── App ─────────────────────────────────────────────────────── -->
 <div id="app">
   <header>
-    <h1>🔥 FRYUMS FACTORY</h1>
+    <h1>🍿 LADHANI SNACKS</h1>
     <div style="display:flex;align-items:center;gap:1rem;">
       <span id="last-sync">—</span>
       <button class="sync-btn" onclick="loadDashboard()">⟳ REFRESH</button>
@@ -353,7 +353,7 @@
               <option>Cooking Oil</option><option>Other</option>
             </select>
           </div>
-          <div class="field"><label>Used For (Product)</label><input type="text" id="raw-product" placeholder="Ring Fryums"></div>
+          <div class="field"><label>Used For (Product)</label><input type="text" id="raw-product" placeholder="Ring Snacks"></div>
           <div class="field"><label>Qty (kg)</label><input type="number" id="raw-qty" placeholder="100" step="0.01"></div>
           <div class="field"><label>Rate (₹/kg)</label><input type="number" id="raw-rate" placeholder="80" step="0.01"></div>
           <div class="field"><label>GST Rate (%)</label>
@@ -439,7 +439,7 @@
           <div class="field"><label>Month (e.g. Jan-2026)</label><input type="text" id="sal-month" placeholder="Jan-2026"></div>
           <div class="field"><label>Distributor Name</label><input type="text" id="sal-dist" placeholder="Sharma Traders"></div>
           <div class="field"><label>Product ID</label><input type="text" id="sal-pid" placeholder="P001"></div>
-          <div class="field"><label>Product Name</label><input type="text" id="sal-pname" placeholder="Ring Fryums"></div>
+          <div class="field"><label>Product Name</label><input type="text" id="sal-pname" placeholder="Ring Snacks"></div>
           <div class="field"><label>Qty Sold (kg)</label><input type="number" id="sal-qty" placeholder="50" step="0.01"></div>
           <div class="field"><label>Rate (₹/kg)</label><input type="number" id="sal-rate" placeholder="95" step="0.01"></div>
           <div class="field"><label>GST Collected (₹)</label><input type="number" id="sal-gst" placeholder="0" step="0.01"></div>
@@ -467,7 +467,7 @@
           <hr style="border-color:var(--border)">
           <div style="font-size:0.8rem;color:var(--muted);line-height:1.8;">
             <strong style="color:var(--text);">Setup Instructions</strong><br>
-            1. Open your Fryums Google Sheet<br>
+            1. Open your Ladhani Snacks Google Sheet<br>
             2. Click <strong>Extensions → Apps Script</strong><br>
             3. Delete any existing code and paste the contents of <strong>Code.gs</strong><br>
             4. Click <strong>Deploy → New Deployment → Web App</strong><br>
@@ -486,7 +486,7 @@
 // ── Config ─────────────────────────────────────────────────────
 const PASS_KEY   = 'ff_pwd';
 const URL_KEY    = 'ff_url';
-const DEFAULT_PASS = 'fryums2026'; // Change this!
+const DEFAULT_PASS = 'ladhani2026'; // Change this!
 
 function getPass() { return localStorage.getItem(PASS_KEY) || DEFAULT_PASS; }
 function getURL()  { return localStorage.getItem(URL_KEY) || ''; }
@@ -495,6 +495,7 @@ function getURL()  { return localStorage.getItem(URL_KEY) || ''; }
 function unlock() {
   const v = document.getElementById('pwd-input').value;
   if(v === getPass()) {
+    localStorage.setItem(PASS_KEY, v);  // persist password after first use
     document.getElementById('lock').style.display = 'none';
     document.getElementById('app').style.display  = 'block';
     if(!getURL()) document.getElementById('config-banner').style.display = 'block';
@@ -528,6 +529,9 @@ function saveSettings() {
 // Pre-fill settings fields
 window.addEventListener('load', () => {
   document.getElementById('set-url').value = getURL();
+  // Auto-focus password field
+  const savedPwd = localStorage.getItem(PASS_KEY);
+  if (savedPwd) document.getElementById('pwd-input').value = savedPwd;
   // Set today's date on all date fields
   const today = new Date().toISOString().split('T')[0];
   ['raw-date','ops-date','oth-date','sal-date'].forEach(id => {
