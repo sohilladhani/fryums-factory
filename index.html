@@ -339,8 +339,11 @@
         <span id="eye-off"  style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.585 10.587a2 2 0 0 0 2.829 2.828"/><path d="M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87"/><path d="M3 3l18 18"/></svg></span>
       </button>
     </div>
-    <button onclick="unlock()">UNLOCK</button>
-    <span id="lock-err"></span>
+    <button onclick="unlock()" id="unlock-btn">UNLOCK</button>
+    <div id="lock-status" style="display:flex;align-items:center;gap:0.5rem;min-height:1.2rem;justify-content:center;">
+      <div id="lock-spinner" class="spinner" style="display:none;width:14px;height:14px;border-width:2px;flex-shrink:0;"></div>
+      <span id="lock-err" style="font-size:0.8rem;"></span>
+    </div>
   </div>
 </div>
 
@@ -786,8 +789,13 @@ function togglePwdVisibility() {
 async function unlock() {
   const v       = document.getElementById('pwd-input').value;
   const errEl   = document.getElementById('lock-err');
-  const btn     = document.querySelector('#lock .lock-form button');
-  btn.textContent = 'CHECKING…'; btn.disabled = true;
+  const btn       = document.getElementById('unlock-btn');
+  const spinner   = document.getElementById('lock-spinner');
+  btn.textContent = 'CHECKING…';
+  btn.disabled    = true;
+  spinner.style.display = 'block';
+  errEl.textContent     = 'Verifying password…';
+  errEl.style.color     = 'var(--muted)';
 
   const inputHash    = await sha256(v);
   const cachedHash   = getCachedHash();
@@ -795,14 +803,14 @@ async function unlock() {
   // Try cached hash first (works offline)
   if (cachedHash && inputHash === cachedHash) {
     admitUser();
-    btn.textContent = 'UNLOCK'; btn.disabled = false;
+    resetLockUI();
     return;
   }
 
   // No cache — fetch from sheet
   if (!getURL()) {
     errEl.textContent = 'Script URL not set. Go to ⚙ Settings and paste your Apps Script URL first.';
-    btn.textContent = 'UNLOCK'; btn.disabled = false;
+    resetLockUI();
     return;
   }
 
@@ -815,8 +823,10 @@ async function unlock() {
       if (inputHash === cfg.pwHash) {
         admitUser();
       } else {
+        errEl.style.color = 'var(--red)';
         errEl.textContent = 'Wrong password. Try again.';
         document.getElementById('pwd-input').value = '';
+        document.getElementById('pwd-input').focus();
       }
     } else {
       errEl.textContent = 'Could not read password from Sheet. Check your Master Config → APP SETTINGS cell.';
@@ -826,6 +836,15 @@ async function unlock() {
   }
 
   btn.textContent = 'UNLOCK'; btn.disabled = false;
+}
+
+function resetLockUI() {
+  const btn     = document.getElementById('unlock-btn');
+  const spinner = document.getElementById('lock-spinner');
+  const errEl   = document.getElementById('lock-err');
+  if (btn)     { btn.textContent = 'UNLOCK'; btn.disabled = false; }
+  if (spinner) spinner.style.display = 'none';
+  if (errEl)   { errEl.textContent = ''; errEl.style.color = 'var(--red)'; }
 }
 
 function admitUser() {
