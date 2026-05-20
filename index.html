@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ladhani Snacks — Control Room</title>
 <link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/npm/@tabler/icons@latest/icons/outline/flame.svg">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -281,7 +282,19 @@
     <p style="text-align:center; margin-top:0.5rem;">CONTROL ROOM</p>
   </div>
   <div class="lock-form">
-    <input type="password" id="pwd-input" placeholder="ENTER PASSWORD" autocomplete="current-password">
+    <div style="position:relative;width:100%;">
+      <input type="password" id="pwd-input" placeholder="ENTER PASSWORD"
+        autocomplete="current-password"
+        style="width:100%;box-sizing:border-box;padding:0.9rem 3rem 0.9rem 1.2rem;">
+      <button onclick="togglePwdVisibility()" id="eye-btn" type="button"
+        aria-label="Show/hide password"
+        style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);
+               background:none;border:none;cursor:pointer;padding:0;
+               display:flex;align-items:center;justify-content:center;
+               color:var(--muted);line-height:1;">
+        <i id="eye-icon" class="ti ti-eye" style="font-size:18px;" aria-hidden="true"></i>
+      </button>
+    </div>
     <button onclick="unlock()">UNLOCK</button>
     <span id="lock-err"></span>
   </div>
@@ -710,6 +723,18 @@ function cacheAgeLabel(ms) {
 }
 
 // ── Lock / Unlock ───────────────────────────────────────────────
+function togglePwdVisibility() {
+  const input = document.getElementById('pwd-input');
+  const icon  = document.getElementById('eye-icon');
+  if (input.type === 'password') {
+    input.type       = 'text';
+    icon.className   = 'ti ti-eye-off';
+  } else {
+    input.type       = 'password';
+    icon.className   = 'ti ti-eye';
+  }
+}
+
 async function unlock() {
   const v       = document.getElementById('pwd-input').value;
   const errEl   = document.getElementById('lock-err');
