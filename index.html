@@ -554,7 +554,8 @@
 // ── Config ─────────────────────────────────────────────────────
 const PASS_KEY     = 'ff_pwd';
 const URL_KEY      = 'ff_url';
-const DEFAULT_PASS = 'ladhani2026';  // Fallback only — real password comes from Sheet
+const SCRIPT_URL   = 'https://script.google.com/macros/s/AKfycbw-NYk3m8R053-SitgpDUGgZhs0_5P-MabyE4BtvCr7ZZppRr8Ql9p9pXrOans_SP4/exec';
+const DEFAULT_PASS = null;  // No fallback — password must come from Sheet
 const PWHASH_KEY  = 'ff_pwhash';     // Cached hash from sheet
 const CACHE_KEY    = 'ff_cache';
 const CONFIG_KEY   = 'ff_config';
@@ -571,7 +572,7 @@ async function sha256(message) {
   const hashArray  = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
-function getURL()  { return localStorage.getItem(URL_KEY) || ''; }
+function getURL()  { return SCRIPT_URL || localStorage.getItem(URL_KEY) || ''; }
 // ── Month dropdown helpers ──────────────────────────────────────
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -800,9 +801,7 @@ async function unlock() {
 
   // No cache — fetch from sheet
   if (!getURL()) {
-    // No script URL yet — fall back to DEFAULT_PASS plain compare
-    if (v === DEFAULT_PASS) { admitUser(); }
-    else { errEl.textContent = 'Wrong password.'; }
+    errEl.textContent = 'Script URL not set. Go to ⚙ Settings and paste your Apps Script URL first.';
     btn.textContent = 'UNLOCK'; btn.disabled = false;
     return;
   }
@@ -820,9 +819,7 @@ async function unlock() {
         document.getElementById('pwd-input').value = '';
       }
     } else {
-      // Sheet returned no hash — fall back
-      if (v === DEFAULT_PASS) { admitUser(); }
-      else { errEl.textContent = 'Wrong password. Try again.'; }
+      errEl.textContent = 'Could not read password from Sheet. Check your Master Config → APP SETTINGS cell.';
     }
   } catch(e) {
     errEl.textContent = 'Could not reach sheet. Check Script URL in Settings.';
