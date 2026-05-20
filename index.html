@@ -57,6 +57,44 @@
     display: flex; flex-direction: column; align-items: center; gap: 1rem;
     width: min(340px, 90vw);
   }
+  .pwd-wrap {
+    position: relative;
+    width: 100%;
+    align-self: stretch;
+  }
+  .pwd-wrap input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.9rem 3rem 0.9rem 1.2rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    letter-spacing: 0.15em;
+    text-align: left;
+    outline: none;
+    transition: border-color 0.2s;
+    display: block;
+    margin: 0;
+  }
+  .pwd-wrap input:focus { border-color: var(--accent); }
+  .pwd-wrap #eye-btn {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    color: var(--muted);
+    font-size: 18px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+  }
   .lock-form input {
     width: 100%; padding: 0.9rem 1.2rem;
     background: var(--surface); border: 1px solid var(--border);
@@ -281,18 +319,24 @@
     <h1>LADHANI<br>SNACKS</h1>
     <p style="text-align:center; margin-top:0.5rem;">CONTROL ROOM</p>
   </div>
-  <div class="lock-form">
-    <div style="position:relative;width:100%;">
+  <div class="lock-form" style="width:min(340px,90vw);">
+    <div style="position:relative;width:100%;box-sizing:border-box;">
       <input type="password" id="pwd-input" placeholder="ENTER PASSWORD"
         autocomplete="current-password"
-        style="width:100%;box-sizing:border-box;padding:0.9rem 3rem 0.9rem 1.2rem;">
+        style="display:block;width:100%;box-sizing:border-box;
+               padding:0.9rem 3rem 0.9rem 1.2rem;
+               background:var(--surface);border:1px solid var(--border);
+               border-radius:4px;color:var(--text);font-family:var(--font-mono);
+               font-size:1rem;letter-spacing:0.15em;text-align:left;outline:none;
+               transition:border-color 0.2s;">
       <button onclick="togglePwdVisibility()" id="eye-btn" type="button"
         aria-label="Show/hide password"
         style="position:absolute;right:0.75rem;top:50%;transform:translateY(-50%);
-               background:none;border:none;cursor:pointer;padding:0;
-               display:flex;align-items:center;justify-content:center;
-               color:var(--muted);line-height:1;">
-        <i id="eye-icon" class="ti ti-eye" style="font-size:18px;" aria-hidden="true"></i>
+               background:none;border:none;cursor:pointer;padding:4px;
+               color:var(--muted);display:block;width:28px;height:28px;
+               line-height:0;font-size:0;">
+        <span id="eye-open" style="display:block;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0"/><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6"/></svg></span>
+        <span id="eye-off"  style="display:none;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.585 10.587a2 2 0 0 0 2.829 2.828"/><path d="M16.681 16.673a8.717 8.717 0 0 1 -4.681 1.327c-3.6 0 -6.6 -2 -9 -6c1.272 -2.12 2.712 -3.678 4.32 -4.674m2.86 -1.146a9.055 9.055 0 0 1 1.82 -.18c3.6 0 6.6 2 9 6c-.666 1.11 -1.379 2.067 -2.138 2.87"/><path d="M3 3l18 18"/></svg></span>
       </button>
     </div>
     <button onclick="unlock()">UNLOCK</button>
@@ -724,14 +768,17 @@ function cacheAgeLabel(ms) {
 
 // ── Lock / Unlock ───────────────────────────────────────────────
 function togglePwdVisibility() {
-  const input = document.getElementById('pwd-input');
-  const icon  = document.getElementById('eye-icon');
+  const input  = document.getElementById('pwd-input');
+  const eyeOn  = document.getElementById('eye-open');
+  const eyeOff = document.getElementById('eye-off');
   if (input.type === 'password') {
     input.type       = 'text';
-    icon.className   = 'ti ti-eye-off';
+    eyeOn.style.display  = 'none';
+    eyeOff.style.display = 'block';
   } else {
     input.type       = 'password';
-    icon.className   = 'ti ti-eye';
+    eyeOn.style.display  = 'block';
+    eyeOff.style.display = 'none';
   }
 }
 
